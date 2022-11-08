@@ -17,6 +17,8 @@
 #include "votol_em.h"
 #include "can_lights.h"
 #include "gauge.h"
+#include "trip_stats.h"
+
 
 // blink states for turn indicators
 #define BLINK_MODE_NONE       0
@@ -33,8 +35,8 @@
 
 // display modes
 #define MODE_AMPS             0 // motor amps, real time
-#define MODE_TRIP             1 // distance and time
-#define MODE_STATS            2 // Wh/km, avg km/h
+#define MODE_TRIP             1 // distance and time TODO
+#define MODE_STATS            2 // Wh/km, avg km/h TODO
 
 // timing
 // NOTES Votol request / read takes ~5ms
@@ -63,15 +65,11 @@ volatile uint8_t state = STATE_STARTING;
 uint8_t display_mode = MODE_AMPS;
 
 // Trip meter and stats
-#define WHEEL_CIRC    1360    // Wheel circumference; mm
+// TODO: Still implementing
 int read_t;                   // time (ms) since last read
 int last_read_t;              // time (ms) of last read
 
-struct 
-{
-  uint32_t distance_mm = 0;     // cumulative trip distance in mm
-  int32_t watt_s_x100 = 0;      // cumulative Watt/seconds * 100
-  
+Trip_stats_t trip_stats;
 
 // keep track of which data has been updated on each read cycle
 typedef union
@@ -133,6 +131,7 @@ void setup ()
 {
 
   // Initialise all pins
+  // TODO: put gauge output pin into a neutral(?) state prior to starting PWM later
   pinMode (LIGHTS_IN, INPUT);
   pinMode (TURN_L_IN, INPUT);
   pinMode (TURN_R_IN, INPUT);
@@ -223,7 +222,7 @@ void loop()
   }
 
   // Check for data on VOTOL "CAN" UART
-  // If in Ecternal Control state, just ignore it
+  // If in External Control state, just ignore it
   // otherwise hard buffer flush disturbs communications
   if (state != STATE_EXT_CONTROL && VotolSerial.available())
   { 
@@ -266,8 +265,8 @@ void loop()
       state = STATE_EXT_CONTROL;
 
       // update display to show connect mode
-      draw_display (display1, DISPLAY_MODE_CONNECT, NULL, NULL, NULL, NULL);
-      draw_display (display2, DISPLAY_MODE_CONNECT, NULL, NULL, NULL, NULL);
+      draw_display (display1, DISPLAY_MODE_CONNECT, NULL, NULL, NULL, NULL, NULL);
+      draw_display (display2, DISPLAY_MODE_CONNECT, NULL, NULL, NULL, NULL, NULL);
 
       #ifdef DEBUG
         DebugSerial.print ("To state: EXT_CONTROL");
@@ -544,10 +543,24 @@ void loop()
         #ifdef DEBUG
           DebugSerial.println ("Updating dash");
         #endif
-        
 
-        draw_display (display1, DISPLAY_MODE_AMPS, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
-        draw_display (display2, DISPLAY_MODE_TEMPS, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
+        // Display 1 content according to mode
+        switch (display_mode)
+        {
+          case MODE_AMPS:
+            draw_display (display1, DISPLAY_MODE_AMPS, NULL, NULL, NULL, NULL, NULL);
+            break;
+
+          case MODE_TRIP:
+            draw_display (display1, DISPLAY_MODE_TRIP, NULL, NULL, NULL, NULL, NULL);
+            break;
+
+          case MODE_STATS:
+            draw_display (display1, DISPLAY_MODE_STATS, NULL, NULL, NULL, NULL, NULL);
+            break;
+        }
+
+        draw_display (display2, DISPLAY_MODE_TEMPS, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1, NULL);
         GAUGE_Set (BMS_get_soc (&BMS_rpt_soc_1));
       }
 
@@ -565,6 +578,11 @@ void loop()
         if (VOTOL_check_valid_temp (&VOTOL_Response.resp))
         {
           state = STATE_ACTIVE;
+
+          // start read time capture
+          last_read_t = millis();
+
+          // TODO: reset the trip stats (make a function)
 
           #ifdef DEBUG
             DebugSerial.println ("To state: ACTIVE");
@@ -634,6 +652,21 @@ void loop()
       if (update_flags.flags.votol)
       {
         votol_timeout_cnt = 0;
+
+        // update the stats
+        read_t = millis() - last_read_t;
+        last_read_t = millis();
+        uint16_t rpm = VOTOL_get_rpm (&VOTOL_Response.resp);
+
+        trip_stats.distance_mm += WHEEL_CIRC * rpm * read_t / 60000;
+        trip_stats.watt_s_x100 += VOTOL_get_volts (&VOTOL_Response.resp) * VOTOL_get_amps (&VOTOL_Response.resp) * read_t / 1000;
+        trip_stats.avg_speed += rpm * 36 / 1000; trip_stats.avg_speed <<= 1;
+
+        #ifdef DEBUG
+            DebugSerial.printf ("Distance: %d.%d\r\n", trip_stats.distance_mm / 1000000, trip_stats.distance_mm % 10);
+            DebugSerial.printf ("Watt hours: %d\r\n", trip_stats.watt_s_x100 / 360000);
+            DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed / 10, trip_stats.avg_speed % 10);
+        #endif
       }
 
       // initiate a read for next time
@@ -682,9 +715,25 @@ void loop()
         #ifdef DEBUG
           DebugSerial.println ("Updating dash");
         #endif
-        
-        draw_display (display1, DISPLAY_MODE_AMPS, &VOTOL_Response.resp, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
-        draw_display (display2, DISPLAY_MODE_TEMPS, &VOTOL_Response.resp, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
+
+        // Display 1 content according to mode
+        switch (display_mode)
+        {
+          case MODE_AMPS:
+            draw_display (display1, DISPLAY_MODE_AMPS, &VOTOL_Response.resp, NULL, NULL, NULL, NULL);
+            break;
+
+          case MODE_TRIP:
+            draw_display (display1, DISPLAY_MODE_TRIP, NULL, NULL, NULL, NULL, &trip_stats);
+            break;
+
+          case MODE_STATS:
+            draw_display (display1, DISPLAY_MODE_STATS, NULL, NULL, NULL, NULL, &trip_stats);
+            break;
+        }
+
+        // display 2 content
+        draw_display (display2, DISPLAY_MODE_TEMPS, &VOTOL_Response.resp, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1, NULL);
         GAUGE_Set (BMS_get_soc (&BMS_rpt_soc_1));
       }
 
@@ -738,8 +787,8 @@ void loop()
       {
         update_flags.flags.bms_soc_1 = 0; // reset update flags for next time
 
-        draw_display (display1, DISPLAY_MODE_CHARGE, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
-        draw_display (display2, DISPLAY_MODE_TEMPS, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1);
+        draw_display (display1, DISPLAY_MODE_CHARGE, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1, NULL);
+        draw_display (display2, DISPLAY_MODE_TEMPS, NULL, &BMS_rpt_soc_1, &BMS_rpt_temp_1, &BMS_rpt_fault_1, NULL);
         GAUGE_Set (BMS_get_soc (&BMS_rpt_soc_1));
       }
 
@@ -765,7 +814,7 @@ void loop()
     BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_SOC);
     BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_TEMP);
     BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_FAULT);
-    //BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_STATUS);
+    //BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_STATUS); // Don't need this
     BMS_request_data (BMS_CAN_ID_1, BMS_DATA_ID_CHARGING);
 
     #ifdef DEBUG
@@ -801,18 +850,9 @@ void init_dash ()
   {
     display_init = true;
   
-    /* Clear the buffers - No need, done in draw_display
-    display1.clearDisplay();
-    display2.clearDisplay();
-
-    // refresh the displays - No need, done in draw_display
-    display1.display();
-    display2.display();
-    */
-
     // update display to show startup mode
-    draw_display (display1, DISPLAY_MODE_START, NULL, NULL, NULL, NULL);
-    draw_display (display2, DISPLAY_MODE_START, NULL, NULL, NULL, NULL);
+    draw_display (display1, DISPLAY_MODE_START, NULL, NULL, NULL, NULL, NULL);
+    draw_display (display2, DISPLAY_MODE_START, NULL, NULL, NULL, NULL, NULL);
  }
 }
 

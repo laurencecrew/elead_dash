@@ -5,7 +5,7 @@
 Adafruit_SSD1306 display1 (SCREEN_WIDTH, SCREEN_HEIGHT, COLUMN_OFFSET, &SPI, OLED_DC_1, OLED_RESET_1, OLED_CS_1);
 Adafruit_SSD1306 display2 (SCREEN_WIDTH, SCREEN_HEIGHT, COLUMN_OFFSET, &SPI, OLED_DC_2, OLED_RESET_2, OLED_CS_2);
 
-void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *resp, BMS_SOC_Report_t *soc_1, BMS_Temp_Report_t *temp_1, BMS_Fault_Report_t *fault_1)
+void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *resp, BMS_SOC_Report_t *soc_1, BMS_Temp_Report_t *temp_1, BMS_Fault_Report_t *fault_1, Trip_stats_t *trip_stats)
 {
   int16_t  x1, y1;
   uint16_t w, h;
@@ -65,6 +65,14 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
         //DebugSerial.print ("Display amps: ");
         //DebugSerial.println (str);
       #endif
+
+    break;
+
+    case DISPLAY_MODE_TRIP:
+
+    break;
+
+    case DISPLAY_MODE_STATS:
 
     break;
 
