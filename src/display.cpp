@@ -9,7 +9,7 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 {
   int16_t  x1, y1;
   uint16_t w, h;
-  char str1[5], str2[5];
+  char str1[6], str2[6];
   int16_t amps;
   uint16_t volts;
   int16_t temp_batt1, temp_batt2, temp_cont, temp_motor;

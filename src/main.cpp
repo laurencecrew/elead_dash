@@ -660,12 +660,12 @@ void loop()
 
         trip_stats.distance_mm += WHEEL_CIRC * rpm * read_t / 60000;
         trip_stats.watt_s_x100 += VOTOL_get_volts (&VOTOL_Response.resp) * VOTOL_get_amps (&VOTOL_Response.resp) * read_t / 1000;
-        trip_stats.avg_speed += rpm * 36 / 1000; trip_stats.avg_speed <<= 1;
+        trip_stats.avg_speed_x10 += rpm * 36 / 1000; trip_stats.avg_speed_x10 <<= 1;
 
         #ifdef DEBUG
             DebugSerial.printf ("Distance: %d.%d\r\n", trip_stats.distance_mm / 1000000, trip_stats.distance_mm % 10);
             DebugSerial.printf ("Watt hours: %d\r\n", trip_stats.watt_s_x100 / 360000);
-            DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed / 10, trip_stats.avg_speed % 10);
+            DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
         #endif
       }
 
