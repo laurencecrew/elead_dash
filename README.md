@@ -2,7 +2,7 @@
 
 Dash module for Honda Lead scooter electric conversion.
 
-Based on STM32Duino for STM32F103F8T6
+Based on STM32Duino for STM32F103C8T6
 
 Design includes:
 - Votol EM150SP 'CANbus' controller
