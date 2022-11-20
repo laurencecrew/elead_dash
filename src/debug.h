@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "pins.h"
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
   extern HardwareSerial DebugSerial;

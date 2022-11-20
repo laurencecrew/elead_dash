@@ -6,6 +6,8 @@
 
 #define VOTOL_UART_BAUD 115200
 
+#define VOTOL_BUFFER_SIZE 24 // bytes; min is normal packet size (24 bytes) but a larger buffer helps to clear junk data
+
 // Request packet
 // note this is when in local mode (controller inputs, not serial input, controls parameters)
 // this is set in byte [12] AA for local, 55 for remote
@@ -51,6 +53,7 @@ typedef struct
     const uint8_t pad_3 = 0x00;       // Padding / null
     const uint8_t pad_4 = 0x00;       // Padding / null
     uint8_t control = 0xAA;           // AA = Local, 55 = Remote
+    
     uint8_t throttle_h = 0x11;        // Throttle ratio = throttle value * 5.52 / 32768
     uint8_t throttle_l = 0xE2;        // 
     uint8_t status_1 = 0x00;          // Brake[7] Reverse[6] Lock[5] Switch[3-4] ??[2] Gear[0-1] L/M/H/S
@@ -108,6 +111,7 @@ typedef union
 enum VOTOL_Status_2 {Idle = 0, Init = 1, Start = 2, Run = 3, Stop = 4, Brake = 5, Wait = 6, Fault = 7}; 
 
 void VOTOL_send_request (const char*);
+void VOTOL_flush_rx (void);
 bool VOTOL_check_response (uint8_t*);
 bool VOTOL_check_external_read (uint8_t *);
 uint16_t VOTOL_get_volts (VOTOL_Response_t*);
@@ -123,5 +127,8 @@ bool VOTOL_get_regen_status (VOTOL_Response_t*);
 bool VOTOL_check_valid_temp (VOTOL_Response_t*);
 
 extern HardwareSerial VotolSerial;
+extern VOTOL_ResponseData_t VOTOL_Response;
+extern uint8_t VOTOL_Buffer[VOTOL_BUFFER_SIZE];
+
 
 #endif

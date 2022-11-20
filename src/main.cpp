@@ -19,7 +19,6 @@
 #include "gauge.h"
 #include "trip_stats.h"
 
-
 // blink states for turn indicators
 #define BLINK_MODE_NONE       0
 #define BLINK_MODE_LEFT       1
@@ -44,14 +43,13 @@
 //  Screen update ~ 5ms
 //  Votol parameter change 5 successive reads / 500ms
 //  Votol software reads every ~100ms; RPM updates fast but current also ~500ms
-#define T_TICK            10 // ms = base time / timer interrupt interval; also VOTOL spamming rate in IDLE
+#define T_TICK            50 // ms = base time / timer interrupt interval; also VOTOL spamming rate in IDLE
 #define T_READ            250 / T_TICK // ticks; interval between reading BMS data and VOTOL data in ACTIVE state ALSO updating lights
 #define T_VOTOL_TIMEOUT   750 / (T_READ * T_TICK) // Read cycles. If Votol does not respond (e.g. off), go to IDLE state
 #define T_BLINK           500 / T_TICK // ticks; on-off blink time for turn indicators
 #define T_DEBOUNCE        1000 // us; wait before reading inputs after interrupt 
-#define T_CHARGE_TIMEOUT  3 // ticks e.g. 3 ticks is 750ms if T_TICK = 250ms. If charge is detected, wait a few cycles before changing state to make sure
+#define T_CHARGE_TIMEOUT  10 // ticks in IDLE; successful reads in ACTIVE. If charge is detected, wait a few cycles before changing state to make sure
 
-#define VOTOL_BUFFER_SIZE 24 // bytes; min is normal packet size (24 bytes) but a larger buffer helps to clear junk data
 
 // Globals
 volatile bool tick_flag = true; // true on start and every timer cycle
@@ -63,13 +61,13 @@ bool display_init = false; // false on start - make true if displays successfull
 
 volatile uint8_t state = STATE_STARTING;
 uint8_t display_mode = MODE_AMPS;
+//uint8_t display_mode = MODE_TRIP;
+//uint8_t display_mode = MODE_STATS;
 
 // Trip meter and stats
 // TODO: Still implementing
 int read_t;                   // time (ms) since last read
 int last_read_t;              // time (ms) of last read
-
-Trip_stats_t trip_stats;
 
 // keep track of which data has been updated on each read cycle
 typedef union
@@ -96,22 +94,9 @@ typedef union
 
 Update_flags_t update_flags;
 
-
 // Response packets and data buffers
-VOTOL_ResponseData_t VOTOL_Response;
-uint8_t VOTOL_Buffer[VOTOL_BUFFER_SIZE];
 uint8_t votol_timeout_cnt = 0;
 uint8_t charge_timeout_cnt = 0;
-
-BMS_SOC_Report_t BMS_rpt_soc_1;
-BMS_Temp_Report_t BMS_rpt_temp_1;
-BMS_Charging_Report_t BMS_rpt_charging_1;
-BMS_Fault_Report_t BMS_rpt_fault_1;
-//BMS_Status_Report_t BMS_rpt_status_1; // don't need this one
-// not usable until BMS CAN ID is sorted out:
-//BMS_SOC_Report_t BMS_rpt_soc_2;
-//BMS_Temp_Report_t BMS_rpt_temp_2;
-//BMS_Fault_Report_t BMS_rpt_fault_2;
 
 // turn signal blinking mode & states
 uint8_t blink_mode = BLINK_MODE_NONE, last_blink_mode = BLINK_MODE_NONE;
@@ -191,6 +176,11 @@ void setup ()
   // note; need to do this after CAN is initialised
   update_lights ();
 
+  // initialise trip stats
+  // in particular, start the RTC
+  // note time is set to 0 on entering ACTIVE state
+  TRIP_STATS_init ();
+
   delay (500); // wait a bit for everthing to settle
 
   // start tick timer
@@ -249,9 +239,9 @@ void loop()
         DebugSerial.println (VOTOL_Response.resp.status_2, HEX);
         DebugSerial.print ("Controller status 1: ");
         DebugSerial.println (VOTOL_Response.resp.status_1, HEX);
+      */
         DebugSerial.print ("Regen: ");
         DebugSerial.println (VOTOL_get_regen_status (&VOTOL_Response.resp));
-      */
         DebugSerial.print ("Controller Temp: ");
         DebugSerial.println (VOTOL_get_contr_temp (&VOTOL_Response.resp));
       #endif
@@ -294,17 +284,7 @@ void loop()
         - More spamming = faster response!
         - Buffer size not relevant with hard flush only
       */
-      
-      // flush the buffer
-      // 'Soft' flush: just read another buffer worth
-      //while (VotolSerial.available())
-      //{
-      //  VotolSerial.readBytes(VOTOL_Buffer, sizeof (VOTOL_Buffer));
-      //}
-
-      // 'HARD' flush; stop the packets getting out of synch if junk data is coming in
-      VotolSerial.end ();
-      VotolSerial.begin (VOTOL_UART_BAUD);
+      VOTOL_flush_rx();
 
       // note will read again in IDLE state on next tick cycle
       // can force an immediate read by setting tick_flag
@@ -382,6 +362,7 @@ void loop()
         DebugSerial.println (BMS_rpt_fault_1.byte_7);
       #endif
     }
+    
     /* If I can get the CAN ID changed on the 2nd BMS .. 
     else if (CAN_RX_msg.id == BMS_ParseId (BMS_soc_id_2))
     {
@@ -402,43 +383,6 @@ void loop()
       update_flags.flags.bms_fault_2 = true;
     } 
     */
-
-  #ifdef DEBUG
-  /* Unexpected CAN data? Useful for CAN bus debugging
-    else
-    {
-
-      if (CAN_RX_msg.format == EXTENDED_FORMAT) {
-        DebugSerial.print("Extended ID: 0x");
-        if (CAN_RX_msg.id < 0x10000000) DebugSerial.print("0");
-        if (CAN_RX_msg.id < 0x1000000) DebugSerial.print("00");
-        if (CAN_RX_msg.id < 0x100000) DebugSerial.print("000");
-        if (CAN_RX_msg.id < 0x10000) DebugSerial.print("0000");
-        DebugSerial.print(CAN_RX_msg.id, HEX);
-      } else {
-        DebugSerial.print("Standard ID: 0x");
-        if (CAN_RX_msg.id < 0x100) DebugSerial.print("0");
-        if (CAN_RX_msg.id < 0x10) DebugSerial.print("00");
-        DebugSerial.print(CAN_RX_msg.id, HEX);
-        DebugSerial.print("     ");
-      }
-
-      DebugSerial.print(" DLC: ");
-      DebugSerial.print(CAN_RX_msg.len);
-      if (CAN_RX_msg.type == DATA_FRAME) {
-        DebugSerial.print(" Data: ");
-        for(int i=0; i<CAN_RX_msg.len; i++) {
-          DebugSerial.print("0x"); 
-          DebugSerial.print(CAN_RX_msg.data[i], HEX); 
-          if (i != (CAN_RX_msg.len-1))  DebugSerial.print(" ");
-        }
-        DebugSerial.println();
-      } else {
-        DebugSerial.println(" Data: REMOTE REQUEST FRAME");
-      }
-    }
-  */
-  #endif
   }
 
   /* state machine coding principles
@@ -506,13 +450,28 @@ void loop()
           DebugSerial.println ("Spamming Votol");
         #endif
         
+        // TODO: Consider testing availableForWrite()? Returns available space in buffer
+
         // Request data from motor controller via UART
         VotolSerial.write (VOTOL_Request_Local, sizeof (VOTOL_Request_Local));
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
 
+        #ifdef DEBUG
+          DebugSerial.printf ("Write err: %d\r\n", VotolSerial.getWriteError());
+        #endif
+
+        // When controller first starts, it interrupts the outgoing packet
+        // This causes a pause if waiting for a complete request to be read back
+        // So, wait for data then flush the buffer instead
+        while (!VotolSerial.available());
+        VOTOL_flush_rx();
+
+        #ifdef DEBUG
+          DebugSerial.println ("Readback done");
+        #endif
       }
 
       // get data from BMS only and update the dash
@@ -582,7 +541,8 @@ void loop()
           // start read time capture
           last_read_t = millis();
 
-          // TODO: reset the trip stats (make a function)
+          // reset the trip stats
+          TRIP_STATS_reset();
 
           #ifdef DEBUG
             DebugSerial.println ("To state: ACTIVE");
@@ -660,12 +620,15 @@ void loop()
 
         trip_stats.distance_mm += WHEEL_CIRC * rpm * read_t / 60000;
         trip_stats.watt_s_x100 += VOTOL_get_volts (&VOTOL_Response.resp) * VOTOL_get_amps (&VOTOL_Response.resp) * read_t / 1000;
-        trip_stats.avg_speed_x10 += rpm * 36 / 1000; trip_stats.avg_speed_x10 <<= 1;
+        trip_stats.avg_speed_x10 += WHEEL_CIRC * rpm * 36 / 60000; // add current speed
+        trip_stats.avg_speed_x10 <<= 1; // div by 2
 
         #ifdef DEBUG
             DebugSerial.printf ("Distance: %d.%d\r\n", trip_stats.distance_mm / 1000000, trip_stats.distance_mm % 10);
-            DebugSerial.printf ("Watt hours: %d\r\n", trip_stats.watt_s_x100 / 360000);
+            DebugSerial.printf ("Watt seconds: %d\r\n", trip_stats.watt_s_x100 / 100);
+            DebugSerial.printf ("Current speed x10: %d\r\n", WHEEL_CIRC * rpm * 36 / 60000);
             DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
+            //DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
         #endif
       }
 
@@ -703,6 +666,12 @@ void loop()
 
             #ifdef DEBUG
               DebugSerial.println("To state: CHARGING");
+            #endif
+          }
+          else
+          {
+            #ifdef DEBUG
+              DebugSerial.printf("Charge count: %d\r\n", charge_timeout_cnt);
             #endif
           }
         }

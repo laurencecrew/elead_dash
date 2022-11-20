@@ -9,10 +9,12 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 {
   int16_t  x1, y1;
   uint16_t w, h;
-  char str1[6], str2[6];
+  char str1[6], str2[9];
   int16_t amps;
   uint16_t volts;
   int16_t temp_batt1, temp_batt2, temp_cont, temp_motor;
+  uint32_t dist_km_x10, wh_km;
+  uint8_t hrs, mins, secs;
 
   display.clearDisplay();
 
@@ -53,6 +55,7 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
           strcpy (str1, "---  ");
       }
 
+      // set font
       display.setFont(&FreeSansBold18pt7b);
       display.setTextSize(1);             // Normal 1:1 pixel scale
       display.setTextColor(SSD1306_WHITE);
@@ -70,9 +73,92 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 
     case DISPLAY_MODE_TRIP:
 
+      // screen icon
+      display.drawBitmap (48, 3, bm_icon_trip, 13, 13, SSD1306_WHITE);
+
+      // km label
+      display.drawBitmap (45, 21, bm_label_km_sm, 15, 9, SSD1306_WHITE);
+
+      // sport mode icon
+      if (resp != NULL)
+      {
+        // mode icon
+        if (VOTOL_get_sport_mode (resp))
+          display.drawBitmap (3, 3, bm_icon_sport, 37, 13, SSD1306_WHITE);
+      }
+
+      if (trip_stats != NULL)
+      {
+        dist_km_x10 = trip_stats->distance_mm / 100000;
+        
+        sprintf (str1, "%d.%d", dist_km_x10 / 10, dist_km_x10 % 10);
+        sprintf (str2, "%d:%02d:%02d", trip_stats->trip_time.getHours(), trip_stats->trip_time.getMinutes(), trip_stats->trip_time.getSeconds());
+      }
+      else
+      {
+          strcpy (str1, "--.-");
+          strcpy (str2, "-:--:--");
+      }
+
+      // set font
+      display.setFont(&FreeSansBold9pt7b);
+      display.setTextSize(1);              // 1:1 pixel scale
+      display.setTextColor(SSD1306_WHITE);
+
+      // distance
+      display.setCursor(3, 31);
+      display.print(str1);
+
+      // time
+      display.setCursor(3, 46);
+      display.print(str2);
+
     break;
 
     case DISPLAY_MODE_STATS:
+
+      // screen icon
+      display.drawBitmap (49, 4, bm_icon_stats, 10, 12, SSD1306_WHITE);
+
+      // Wh/km label
+      display.drawBitmap (25, 21, bm_label_wh_km, 37, 9, SSD1306_WHITE);
+
+      // km/h (avg) label
+      display.drawBitmap (25, 36, bm_label_km_sm, 25, 9, SSD1306_WHITE);
+
+      // sport mode icon
+      if (resp != NULL)
+      {
+        // mode icon
+        if (VOTOL_get_sport_mode (resp))
+          display.drawBitmap (3, 3, bm_icon_sport, 37, 13, SSD1306_WHITE);
+      }
+
+      if (trip_stats != NULL)
+      {
+        wh_km = (trip_stats->distance_mm == 0) ? 0 : trip_stats->watt_s_x100 / trip_stats->distance_mm * 100 / 36; // note, avoid div/0!
+
+        sprintf (str1, "%d", wh_km);
+        sprintf (str2, "%d", trip_stats->avg_speed_x10 / 10);
+      }
+      else
+      {
+          strcpy (str1, "--");
+          strcpy (str2, "--");
+      }
+
+      // set font
+      display.setFont(&FreeSansBold9pt7b);
+      display.setTextSize(1);              // 1:1 pixel scale
+      display.setTextColor(SSD1306_WHITE);
+
+      // Wh/km
+      display.setCursor(3, 31);
+      display.print(str1);
+
+      // km/h (avg)
+      display.setCursor(3, 46);
+      display.print(str2);
 
     break;
 
@@ -87,7 +173,7 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
       display.drawBitmap (3, 34, bm_icon_cont, 6, 11, SSD1306_WHITE);
       display.drawBitmap (34, 34, bm_icon_motor, 6, 11, SSD1306_WHITE);
 
-      // temperature values
+       // set font (for all sections)
       display.setFont(&FreeSansBold9pt7b);
       display.setTextSize(1);              // 1:1 pixel scale
       display.setTextColor(SSD1306_WHITE);
@@ -163,10 +249,6 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
         // screen label
         display.drawBitmap (3, 3, bm_icon_charge, 40, 13, SSD1306_WHITE);
 
-        display.setFont(&FreeSansBold9pt7b);
-        display.setTextSize(1);              // 1:1 pixel scale
-        display.setTextColor(SSD1306_WHITE);
-
         sprintf (str1, "%d.%dV", volts / 10, volts % 10);
         sprintf (str2, "%d.%dA", amps / 10, abs (amps % 10));
       }
@@ -175,6 +257,11 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
           strcpy (str1, " --");
           strcpy (str2, " --");
       }
+
+      // set font
+      display.setFont(&FreeSansBold9pt7b);
+      display.setTextSize(1);              // 1:1 pixel scale
+      display.setTextColor(SSD1306_WHITE);
 
       // charge voltage
       display.setCursor(3, 31);

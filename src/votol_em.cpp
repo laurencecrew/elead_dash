@@ -1,6 +1,8 @@
 #include "votol_em.h"
 
 HardwareSerial VotolSerial(VOTOL_USART);
+VOTOL_ResponseData_t VOTOL_Response;
+uint8_t VOTOL_Buffer[VOTOL_BUFFER_SIZE];
 
 void VOTOL_send_request (const char* req) // TODO: convert this to VOTOL_Request_t? If so make it also a union
 {
@@ -8,6 +10,21 @@ void VOTOL_send_request (const char* req) // TODO: convert this to VOTOL_Request
     // then wait for the response in the main loop by polling the serial port
     // TODO: detect a timeout on this? 
     VotolSerial.write (req);
+}
+
+void VOTOL_flush_rx ()
+{
+      // flush the buffer
+      // 'Soft' flush: just read another buffer worth
+      while (VotolSerial.available())
+      {
+        VotolSerial.readBytes(VOTOL_Buffer, sizeof (VOTOL_Buffer)); // stash in buffer, or ..
+        //VotolSerial.read(); // just discard
+      }
+
+      // 'HARD' flush; stop the packets getting out of synch if junk data is coming in
+      //VotolSerial.end ();
+      //VotolSerial.begin (VOTOL_UART_BAUD);
 }
 
 // Check a response to see if it is valid before using data

@@ -10,6 +10,7 @@
             "includePath": [
                 "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/include",
                 "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/src",
+                "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/STM32duino RTC/src",
                 "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit SSD1306",
                 "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit GFX Library",
                 "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit BusIO",
@@ -53,6 +54,7 @@
                 "path": [
                     "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/include",
                     "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/src",
+                    "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/STM32duino RTC/src",
                     "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit SSD1306",
                     "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit GFX Library",
                     "c:/Users/laure/OneDrive/Documents/PlatformIO/Projects/eLead_Dash_Module/.pio/libdeps/bluepill_f103c8/Adafruit BusIO",

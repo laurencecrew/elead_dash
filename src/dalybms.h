@@ -201,4 +201,16 @@ int BMS_get_temp (BMS_Temp_Report_t*);
 bool BMS_get_fault (BMS_Fault_Report_t*);
 bool BMS_get_charge_status (BMS_Charging_Report_t*);
 
+
+// globals
+extern BMS_SOC_Report_t BMS_rpt_soc_1;
+extern BMS_Temp_Report_t BMS_rpt_temp_1;
+extern BMS_Charging_Report_t BMS_rpt_charging_1;
+extern BMS_Fault_Report_t BMS_rpt_fault_1;
+//extern BMS_Status_Report_t BMS_rpt_status_1; // don't need this one
+// not usable until BMS CAN ID is sorted out:
+//extern BMS_SOC_Report_t BMS_rpt_soc_2;
+//extern BMS_Temp_Report_t BMS_rpt_temp_2;
+//extern BMS_Fault_Report_t BMS_rpt_fault_2;
+
 #endif

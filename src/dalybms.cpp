@@ -3,6 +3,16 @@
 #include "can.h"
 #include "debug.h"
 
+BMS_SOC_Report_t BMS_rpt_soc_1;
+BMS_Temp_Report_t BMS_rpt_temp_1;
+BMS_Charging_Report_t BMS_rpt_charging_1;
+BMS_Fault_Report_t BMS_rpt_fault_1;
+//BMS_Status_Report_t BMS_rpt_status_1; // don't need this one
+// not usable until BMS CAN ID is sorted out:
+//BMS_SOC_Report_t BMS_rpt_soc_2;
+//BMS_Temp_Report_t BMS_rpt_temp_2;
+//BMS_Fault_Report_t BMS_rpt_fault_2;
+
 void BMS_request_data (uint8_t dest_id, uint8_t data_id)
 {
     BMS_CAN_Id_t id;
