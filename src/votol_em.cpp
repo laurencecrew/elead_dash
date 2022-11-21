@@ -12,19 +12,29 @@ void VOTOL_send_request (const char* req) // TODO: convert this to VOTOL_Request
     VotolSerial.write (req);
 }
 
-void VOTOL_flush_rx ()
+void VOTOL_flush_rx (int maxBytes)
 {
-      // flush the buffer
-      // 'Soft' flush: just read another buffer worth
-      while (VotolSerial.available())
-      {
-        VotolSerial.readBytes(VOTOL_Buffer, sizeof (VOTOL_Buffer)); // stash in buffer, or ..
-        //VotolSerial.read(); // just discard
-      }
+    int cnt = 0;
+        
+    delayMicroseconds(100); // need to wait a little for first byte .. note 1 byte takes ~87us @ 115200
 
-      // 'HARD' flush; stop the packets getting out of synch if junk data is coming in
-      //VotolSerial.end ();
-      //VotolSerial.begin (VOTOL_UART_BAUD);
+    // flush the buffer
+    // 'Soft' flush: just read until no more bytes
+    while (VotolSerial.available() && (cnt < maxBytes))
+    {
+        //VotolSerial.readBytes(VOTOL_Buffer, sizeof (VOTOL_Buffer)); // stash in buffer, or ..
+        VotolSerial.read(); // just discard NOTE only seems to read one byte?
+        delayMicroseconds(100); // need to wait a little for next byte .. note 1 byte takes ~87us @ 115200
+        cnt++;
+    }
+
+    #ifdef DEBUG
+        DebugSerial.printf ("Flushed %d of %d\r\n", cnt, maxBytes);
+    #endif
+
+    // 'HARD' flush; stop the packets getting out of synch if junk data is coming in
+    //VotolSerial.end ();
+    //VotolSerial.begin (VOTOL_UART_BAUD);
 }
 
 // Check a response to see if it is valid before using data

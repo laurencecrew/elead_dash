@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 #include "pins.h"
+#include "debug.h"
 
 #define VOTOL_UART_BAUD 115200
-
 #define VOTOL_BUFFER_SIZE 24 // bytes; min is normal packet size (24 bytes) but a larger buffer helps to clear junk data
 
 // Request packet
@@ -111,7 +111,7 @@ typedef union
 enum VOTOL_Status_2 {Idle = 0, Init = 1, Start = 2, Run = 3, Stop = 4, Brake = 5, Wait = 6, Fault = 7}; 
 
 void VOTOL_send_request (const char*);
-void VOTOL_flush_rx (void);
+void VOTOL_flush_rx (int);
 bool VOTOL_check_response (uint8_t*);
 bool VOTOL_check_external_read (uint8_t *);
 uint16_t VOTOL_get_volts (VOTOL_Response_t*);
