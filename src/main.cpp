@@ -239,11 +239,11 @@ void loop()
         DebugSerial.println (VOTOL_Response.resp.status_2, HEX);
         DebugSerial.print ("Controller status 1: ");
         DebugSerial.println (VOTOL_Response.resp.status_1, HEX);
-      */
         DebugSerial.print ("Regen: ");
         DebugSerial.println (VOTOL_get_regen_status (&VOTOL_Response.resp));
         DebugSerial.print ("Controller Temp: ");
         DebugSerial.println (VOTOL_get_contr_temp (&VOTOL_Response.resp));
+      */
       #endif
     }
     else if (VOTOL_check_external_read (VOTOL_Buffer))
@@ -279,16 +279,9 @@ void loop()
               
       #endif
 
-      /* Notes on VOTOL startup:
-        - faser response with hard flush
-        - More spamming = faster response!
-        - Buffer size not relevant with hard flush only
-      */
+      // flush any remaining data
       VOTOL_flush_rx(sizeof (VOTOL_Buffer));
 
-      // note will read again in IDLE state on next tick cycle
-      // can force an immediate read by setting tick_flag
-      //tick_flag = true;
     }
   }
 
@@ -302,6 +295,7 @@ void loop()
       // get data from the CAN packet into the report structure
       memcpy(&BMS_rpt_soc_1, CAN_RX_msg.data, sizeof BMS_rpt_soc_1);
       update_flags.flags.bms_soc_1 = true;
+
       /*
       #ifdef DEBUG
         DebugSerial.print ("SOC 1: ");
@@ -347,8 +341,8 @@ void loop()
       update_flags.flags.bms_charging_1 = true;
 
       #ifdef DEBUG
-        DebugSerial.print ("Charging charge_status: ");
-        DebugSerial.println (BMS_rpt_charging_1.charge_status);
+        //DebugSerial.print ("Charging charge_status: ");
+        //DebugSerial.println (BMS_rpt_charging_1.charge_status);
       #endif
     }
     else if (CAN_RX_msg.id == BMS_ParseId (BMS_fault_id_1))
@@ -457,13 +451,13 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        // When controller first starts, it interrupts the outgoing packet
-        // This causes a pause if waiting for a complete request to be read back
+        // When controller first starts, it interrupts the outgoing packet, losing 1 byte
+        // This causes a hang if waiting for a complete request to be read back
         // So, flush the buffer instead to max of the bytes sent
         VOTOL_flush_rx (sizeof (VOTOL_Buffer));
 
         #ifdef DEBUG
-          DebugSerial.println ("Readback done");
+          //DebugSerial.println ("Readback done");
         #endif
       }
 
@@ -473,7 +467,7 @@ void loop()
         update_flags.all_flags &= ~BMS_UPDATED; // reset update flags for next time
 
         // If charging detected whilst Votol disabled (no need to check for regen charging)rge_timeout_cnt?
-        if (BMS_get_charge_status(&BMS_rpt_charging_1))
+        if (BMS_get_charge_status (&BMS_rpt_charging_1))
         {
           if (++charge_timeout_cnt >= T_CHARGE_TIMEOUT) // count a few times to make sure
           {
@@ -520,6 +514,7 @@ void loop()
 
     // waiting for controller to wake up
     // as it tends to send junk data for a little while
+    // e.g. temperature 96C
     case STATE_WAKEUP:
 
       if (update_flags.flags.votol)
@@ -575,9 +570,6 @@ void loop()
       // (e.g. controller is switched off)
       if (read_flag && !update_flags.flags.votol)
       {
-        #ifdef DEBUG
-          DebugSerial.println ("No VOTOL data yet");
-        #endif
 
         if (++votol_timeout_cnt >= T_VOTOL_TIMEOUT)
         {
@@ -642,14 +634,15 @@ void loop()
         #endif
       }
 
-      // dash needs to be updated
-      // At least the BMS has been updated
+      // All data updated
+      // Dash needs to be updated
+      // Also check for charging
       if ((update_flags.all_flags & ALL_UPDATED) == ALL_UPDATED)
       {
         update_flags.all_flags = 0; // reset update flags for next time
 
         // If charging detected whilst controller on but no regen (i.e must be external charger)
-        if (!VOTOL_get_regen_status (&VOTOL_Response.resp) && BMS_get_charge_status(&BMS_rpt_charging_1))
+        if (!VOTOL_get_regen_status (&VOTOL_Response.resp) && BMS_get_charge_status (&BMS_rpt_charging_1))
         {
           if (++charge_timeout_cnt >= T_CHARGE_TIMEOUT) // count a few times to make sure
           {
@@ -658,13 +651,13 @@ void loop()
             state = STATE_CHARGING;
 
             #ifdef DEBUG
-              DebugSerial.println("To state: CHARGING");
+              DebugSerial.println ("To state: CHARGING");
             #endif
           }
           else
           {
             #ifdef DEBUG
-              DebugSerial.printf("Charge count: %d\r\n", charge_timeout_cnt);
+              DebugSerial.printf ("Charge count: %d\r\n", charge_timeout_cnt);
             #endif
           }
         }
@@ -704,15 +697,15 @@ void loop()
     // Charging from external charger
     case STATE_CHARGING:
 
-      if (read_flag & !BMS_get_charge_status(&BMS_rpt_charging_1))
+      if (read_flag & !BMS_get_charge_status (&BMS_rpt_charging_1))
       {
         // Exit CHARGING state back to IDLE
 
-        // note: nmo need to clear the flag as it is done below when reading the BMS
+        // note: no need to clear the flag as it is done below when reading the BMS
         state = STATE_IDLE;
 
         #ifdef DEBUG
-          DebugSerial.println("To state: IDLE");
+          DebugSerial.println ("To state: IDLE");
         #endif
 
         // Request data from motor controller via UART (to reinitiate data reading)
@@ -733,7 +726,7 @@ void loop()
         tick_flag = false;
 
         // Send the disarm packet (park mode)
-         // note, disabled this for now
+        // note, disabled this for now; risk of spurious entry to Park mode
         //VotolSerial.write (VOTOL_Request_Disarm, sizeof (VOTOL_Request_Disarm));
 
         // immediately read / clear the buffer
@@ -799,14 +792,11 @@ void loop()
 // initialise the dash
 void init_dash ()
 {
-  // initialise gauge
-  //GAUGE_Init (); // now updated in main() when entering IDLE state
-
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if(!(display1.begin(SSD1306_SWITCHCAPVCC, 0, true, true) && display2.begin(SSD1306_SWITCHCAPVCC, 0, true, true)))
+  if(!(display1.begin (SSD1306_SWITCHCAPVCC, 0, true, true) && display2.begin (SSD1306_SWITCHCAPVCC, 0, true, true)))
   {
     #ifdef DEBUG
-      DebugSerial.println(F("SSD1306 allocation failed"));
+      DebugSerial.println (F("SSD1306 allocation failed"));
     #endif
   }
   else
