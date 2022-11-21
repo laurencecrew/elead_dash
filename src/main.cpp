@@ -284,7 +284,7 @@ void loop()
         - More spamming = faster response!
         - Buffer size not relevant with hard flush only
       */
-      VOTOL_flush_rx();
+      VOTOL_flush_rx(sizeof (VOTOL_Buffer));
 
       // note will read again in IDLE state on next tick cycle
       // can force an immediate read by setting tick_flag
@@ -457,17 +457,10 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
-
-        #ifdef DEBUG
-          DebugSerial.printf ("Write err: %d\r\n", VotolSerial.getWriteError());
-        #endif
-
         // When controller first starts, it interrupts the outgoing packet
         // This causes a pause if waiting for a complete request to be read back
-        // So, wait for data then flush the buffer instead
-        while (!VotolSerial.available());
-        VOTOL_flush_rx();
+        // So, flush the buffer instead to max of the bytes sent
+        VOTOL_flush_rx (sizeof (VOTOL_Buffer));
 
         #ifdef DEBUG
           DebugSerial.println ("Readback done");
@@ -621,13 +614,13 @@ void loop()
         trip_stats.distance_mm += WHEEL_CIRC * rpm * read_t / 60000;
         trip_stats.watt_s_x100 += VOTOL_get_volts (&VOTOL_Response.resp) * VOTOL_get_amps (&VOTOL_Response.resp) * read_t / 1000;
         trip_stats.avg_speed_x10 += WHEEL_CIRC * rpm * 36 / 60000; // add current speed
-        trip_stats.avg_speed_x10 <<= 1; // div by 2
+        trip_stats.avg_speed_x10 >>= 1; // div by 2
 
         #ifdef DEBUG
             DebugSerial.printf ("Distance: %d.%d\r\n", trip_stats.distance_mm / 1000000, trip_stats.distance_mm % 10);
             DebugSerial.printf ("Watt seconds: %d\r\n", trip_stats.watt_s_x100 / 100);
             DebugSerial.printf ("Current speed x10: %d\r\n", WHEEL_CIRC * rpm * 36 / 60000);
-            DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
+            //DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
             //DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
         #endif
       }
@@ -740,11 +733,12 @@ void loop()
         tick_flag = false;
 
         // Send the disarm packet (park mode)
-        VotolSerial.write (VOTOL_Request_Disarm, sizeof (VOTOL_Request_Disarm));
+         // note, disabled this for now
+        //VotolSerial.write (VOTOL_Request_Disarm, sizeof (VOTOL_Request_Disarm));
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
 
         #ifdef DEBUG
           DebugSerial.println ("Votol disarm sent");
