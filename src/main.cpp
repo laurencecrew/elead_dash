@@ -33,6 +33,7 @@
 #define STATE_EXT_CONTROL     5 // external control software connected
 
 // display modes
+#define NUM_MODES             3 // count of ..
 #define MODE_AMPS             0 // motor amps, real time
 #define MODE_TRIP             1 // distance and time TODO
 #define MODE_STATS            2 // Wh/km, avg km/h TODO
@@ -125,12 +126,13 @@ void setup ()
   pinMode (MODE_2_IN, INPUT);
 
   // Input pin interrupts
+  // capture any change to lights; falling for mode switch
   //attachInterrupt (digitalPinToInterrupt (LIGHTS_IN), input_ISR, CHANGE); // NOTE: Can't use PB12 and PA12 interrupts as they are on the same 'line' :/
   attachInterrupt (digitalPinToInterrupt (TURN_L_IN), input_ISR, CHANGE);
   attachInterrupt (digitalPinToInterrupt (TURN_R_IN), input_ISR, CHANGE);
   attachInterrupt (digitalPinToInterrupt (BRAKE_IN), input_ISR, CHANGE);
-  //attachInterrupt (digitalPinToInterrupt (MODE_1_IN), input_ISR, CHANGE); // For future mode switch
-  //attachInterrupt (digitalPinToInterrupt (MODE_2_IN), input_ISR, CHANGE); // For future mode switch
+  attachInterrupt (digitalPinToInterrupt (MODE_1_IN), input_ISR, FALLING);
+  //attachInterrupt (digitalPinToInterrupt (MODE_2_IN), input_ISR, FALLING); // For future mode switch
 
   pinMode (TURN_L_OUT, OUTPUT);
   pinMode (TURN_R_OUT, OUTPUT);
@@ -199,15 +201,31 @@ void loop()
     update_lights();
   }
 
-  // debounce = input state has changed e.g. light switches
+  // debounce = input state has changed e.g. light switches, mode in
   if (debounce_flag)
   {
       debounce_flag = false; // reset
 
-      // TODO: Need to disable interrupts while debouncing, etc?
       // TODO: Save return state after debounce?
       delayMicroseconds (T_DEBOUNCE);
+
+      // re-enable interrupts
+      // after disabling them in Input_ISR
+      // note, do this before update_lights as it is probably needed for CAN comms
+      // TODO may need to clear queued interrupts?
+      interrupts();
+
+      // Loop display modes on MODE_1_IN
+      if (digitalRead (MODE_1_IN) == LOW) // still low after interrupt & debounce
+      {
+          // loop modes
+          if (++display_mode >= NUM_MODES)
+            display_mode = 0;
+      }
+  
+      // update lights in case any state has changed
       update_lights();
+
   }
 
   // Check for data on VOTOL "CAN" UART
@@ -611,7 +629,6 @@ void loop()
             DebugSerial.printf ("Watt seconds: %d\r\n", trip_stats.watt_s_x100 / 100);
             DebugSerial.printf ("Current speed x10: %d\r\n", WHEEL_CIRC * rpm * 36 / 60000);
             DebugSerial.printf ("Avg speed: %d.%d\r\n", avg_speed / 10, avg_speed % 10);
-            //DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
             //DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
         #endif
       }
@@ -850,7 +867,8 @@ void update_lights ()
 // call on any change in inputs (lights, brake, turn, mode etc)
 void input_ISR ()
 {
-    debounce_flag = true;
+  noInterrupts(); // disable while debouncing
+  debounce_flag = true;
 }
 
 // TODO: Just set the flag here (as this is an interrupt) then process everything in main()
