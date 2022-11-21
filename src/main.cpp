@@ -188,7 +188,6 @@ void setup ()
 
 }
 
-
 void loop()
 {
   CAN_msg_t CAN_RX_msg;
@@ -605,13 +604,13 @@ void loop()
 
         trip_stats.distance_mm += WHEEL_CIRC * rpm * read_t / 60000;
         trip_stats.watt_s_x100 += VOTOL_get_volts (&VOTOL_Response.resp) * VOTOL_get_amps (&VOTOL_Response.resp) * read_t / 1000;
-        trip_stats.avg_speed_x10 += WHEEL_CIRC * rpm * 36 / 60000; // add current speed
-        trip_stats.avg_speed_x10 >>= 1; // div by 2
 
         #ifdef DEBUG
+            uint16_t avg_speed = TRIP_STATS_get_avg_speed ();
             DebugSerial.printf ("Distance: %d.%d\r\n", trip_stats.distance_mm / 1000000, trip_stats.distance_mm % 10);
             DebugSerial.printf ("Watt seconds: %d\r\n", trip_stats.watt_s_x100 / 100);
             DebugSerial.printf ("Current speed x10: %d\r\n", WHEEL_CIRC * rpm * 36 / 60000);
+            DebugSerial.printf ("Avg speed: %d.%d\r\n", avg_speed / 10, avg_speed % 10);
             //DebugSerial.printf ("Avg speed: %d.%d\r\n", trip_stats.avg_speed_x10 / 10, trip_stats.avg_speed_x10 % 10);
             //DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
         #endif

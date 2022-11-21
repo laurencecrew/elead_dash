@@ -13,7 +13,7 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
   int16_t amps;
   uint16_t volts;
   int16_t temp_batt1, temp_batt2, temp_cont, temp_motor;
-  uint32_t dist_km_x10, wh_km;
+  uint16_t dist_km_x10, avg_speed_x10, wh_km;
   uint8_t hrs, mins, secs;
 
   display.clearDisplay();
@@ -136,10 +136,11 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 
       if (trip_stats != NULL)
       {
-        wh_km = (trip_stats->distance_mm == 0) ? 0 : trip_stats->watt_s_x100 / trip_stats->distance_mm * 100 / 36; // note, avoid div/0!
+        wh_km = TRIP_STATS_get_wh_per_km ();
+        avg_speed_x10 = TRIP_STATS_get_avg_speed ();
 
         sprintf (str1, "%d", wh_km);
-        sprintf (str2, "%d", trip_stats->avg_speed_x10 / 10);
+        sprintf (str2, "%d", avg_speed_x10 / 10);
       }
       else
       {
