@@ -12,24 +12,29 @@ void VOTOL_send_request (const char* req) // TODO: convert this to VOTOL_Request
     VotolSerial.write (req);
 }
 
-void VOTOL_flush_rx (int maxBytes)
+void VOTOL_flush_rx ()
 {
-    int cnt = 0;
-        
-    delayMicroseconds(100); // need to wait a little for first byte .. note 1 byte takes ~87us @ 115200
+    #ifdef DEBUG
+        int cnt = 0;
+    #endif
 
-    // flush the buffer
+    // First flush the TX
+    // this makes sure all bytes are sent (and buffered back on RX due to loopback)
+    VotolSerial.flush();
+        
+    // flush the RX buffer
     // 'Soft' flush: just read until no more bytes
-    while (VotolSerial.available() && (cnt < maxBytes))
+    while (VotolSerial.available())
     {
-        //VotolSerial.readBytes(VOTOL_Buffer, sizeof (VOTOL_Buffer)); // stash in buffer, or ..
-        VotolSerial.read(); // just discard NOTE only seems to read one byte?
-        delayMicroseconds(100); // need to wait a little for next byte .. note 1 byte takes ~87us @ 115200
-        cnt++;
+        VotolSerial.read(); // just discard
+        
+        #ifdef DEBUG
+            cnt++;
+        #endif
     }
 
     #ifdef DEBUG
-        DebugSerial.printf ("Flushed %d of %d\r\n", cnt, maxBytes);
+        DebugSerial.printf ("Flushed %d\r\n", cnt);
     #endif
 
     // 'HARD' flush; stop the packets getting out of synch if junk data is coming in

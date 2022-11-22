@@ -111,7 +111,7 @@ typedef union
 enum VOTOL_Status_2 {Idle = 0, Init = 1, Start = 2, Run = 3, Stop = 4, Brake = 5, Wait = 6, Fault = 7}; 
 
 void VOTOL_send_request (const char*);
-void VOTOL_flush_rx (int);
+void VOTOL_flush_rx ();
 bool VOTOL_check_response (uint8_t*);
 bool VOTOL_check_external_read (uint8_t *);
 uint16_t VOTOL_get_volts (VOTOL_Response_t*);

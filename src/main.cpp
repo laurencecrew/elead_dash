@@ -297,7 +297,7 @@ void loop()
       #endif
 
       // flush any remaining data
-      VOTOL_flush_rx(sizeof (VOTOL_Buffer));
+      VOTOL_flush_rx ();
 
     }
   }
@@ -444,7 +444,9 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        // Flush instead of reading back to avoid hanging on corrupted packets
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        VOTOL_flush_rx ();
 
         #ifdef DEBUG
           DebugSerial.println("To state: WAKEUP");
@@ -470,8 +472,8 @@ void loop()
         // as the 'CAN' converter echos the TX packet back to RX
         // When controller first starts, it interrupts the outgoing packet, losing 1 byte
         // This causes a hang if waiting for a complete request to be read back
-        // So, flush the buffer instead to max of the bytes sent
-        VOTOL_flush_rx (sizeof (VOTOL_Buffer));
+        // So, flush the buffer instead
+        VOTOL_flush_rx ();
 
         #ifdef DEBUG
           //DebugSerial.println ("Readback done");
@@ -571,7 +573,9 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        // Flush instead of reading back to avoid hanging on corrupted packets
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        VOTOL_flush_rx ();
 
         #ifdef DEBUG
           DebugSerial.println ("Votol request sent");
@@ -629,7 +633,7 @@ void loop()
             DebugSerial.printf ("Watt seconds: %d\r\n", trip_stats.watt_s_x100 / 100);
             DebugSerial.printf ("Current speed x10: %d\r\n", WHEEL_CIRC * rpm * 36 / 60000);
             DebugSerial.printf ("Avg speed: %d.%d\r\n", avg_speed / 10, avg_speed % 10);
-            //DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
+            DebugSerial.printf ("Trip time: %d:%02d:%02d\r\n", trip_stats.trip_time.getHours(), trip_stats.trip_time.getMinutes(), trip_stats.trip_time.getSeconds());
         #endif
       }
 
@@ -643,7 +647,9 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        // Flush instead of reading back to avoid hanging on corrupted packets
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        VOTOL_flush_rx ();
 
         #ifdef DEBUG
           DebugSerial.println ("Votol request sent");
@@ -729,7 +735,9 @@ void loop()
 
         // immediately read / clear the buffer
         // as the 'CAN' converter echos the TX packet back to RX
-        VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        // Flush instead of reading back to avoid hanging on corrupted packets
+        //VotolSerial.readBytes (VOTOL_Buffer, sizeof (VOTOL_Request_Local));
+        VOTOL_flush_rx ();
 
         #ifdef DEBUG
           DebugSerial.println ("Votol request sent");
