@@ -45,8 +45,10 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 
         amps = VOTOL_get_amps (resp);
 
-        if ((amps < 100) && (amps > -100)) // 100 because amps value is * 10
-          sprintf (str1, "%d.%d", amps / 10, abs(amps % 10)); // show low values with decimal point
+        if ((amps < 0) && (amps > -100)) // -x.x - 100 because amps value is * 10
+          sprintf (str1, "-%d.%d", abs(amps / 10), abs(amps % 10)); // show low -ve values with decimal point; force '-' otherwise it fails on -0.x
+        else if ((amps >= 0) && (amps < 100)) // x.x - 100 because amps value is * 10
+          sprintf (str1, "%d.%d", amps / 10, amps % 10); // show low +ve values with decimal point
         else
           sprintf (str1, "%d", amps / 10); // show higher values as whole numbers
       }
@@ -124,7 +126,7 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
       display.drawBitmap (25, 21, bm_label_wh_km, 37, 9, SSD1306_WHITE);
 
       // km/h (avg) label
-      display.drawBitmap (25, 36, bm_label_km_sm, 15, 9, SSD1306_WHITE);
+      display.drawBitmap (25, 36, bm_label_kmh, 25, 9, SSD1306_WHITE);
 
       // sport mode icon
       if (resp != NULL)
