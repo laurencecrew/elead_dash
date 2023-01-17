@@ -117,7 +117,6 @@ void setup ()
 {
 
   // Initialise all pins
-  // TODO: put gauge output pin into a neutral(?) state prior to starting PWM later
   pinMode (LIGHTS_IN, INPUT);
   pinMode (TURN_L_IN, INPUT);
   pinMode (TURN_R_IN, INPUT);
@@ -125,13 +124,18 @@ void setup ()
   pinMode (MODE_1_IN, INPUT);
   pinMode (MODE_2_IN, INPUT);
 
+  // Put gauge output pin into a neutral(?) state prior to starting PWM later
+  // Doesn't really work as the H-bridge only has H and L states
+  // Pulling HIGH as an output makes the gauge drop; otherwise it rises on startup
+  pinMode (GAUGE_PWM, INPUT_FLOATING);
+
   // Input pin interrupts
   // capture any change to lights; falling for mode switch
   //attachInterrupt (digitalPinToInterrupt (LIGHTS_IN), input_ISR, CHANGE); // NOTE: Can't use PB12 and PA12 interrupts as they are on the same 'line' :/
   attachInterrupt (digitalPinToInterrupt (TURN_L_IN), input_ISR, CHANGE);
   attachInterrupt (digitalPinToInterrupt (TURN_R_IN), input_ISR, CHANGE);
   attachInterrupt (digitalPinToInterrupt (BRAKE_IN), input_ISR, CHANGE);
-  attachInterrupt (digitalPinToInterrupt (MODE_1_IN), input_ISR, FALLING);
+  attachInterrupt (digitalPinToInterrupt (MODE_1_IN), input_ISR, RISING);
   //attachInterrupt (digitalPinToInterrupt (MODE_2_IN), input_ISR, FALLING); // For future mode switch
 
   pinMode (TURN_L_OUT, OUTPUT);
@@ -209,14 +213,14 @@ void loop()
       // TODO: Save return state after debounce?
       delayMicroseconds (T_DEBOUNCE);
 
-      // re-enable interrupts
+      // re-enable interrupts NOTE buggy
       // after disabling them in Input_ISR
       // note, do this before update_lights as it is probably needed for CAN comms
       // TODO may need to clear queued interrupts?
-      interrupts();
+      //interrupts();
 
       // Loop display modes on MODE_1_IN
-      if (digitalRead (MODE_1_IN) == LOW) // still low after interrupt & debounce
+      if (digitalRead (MODE_1_IN) == HIGH) // still high after interrupt & debounce
       {
           // loop modes
           if (++display_mode >= NUM_MODES)
@@ -701,11 +705,11 @@ void loop()
             break;
 
           case MODE_TRIP:
-            draw_display (display1, DISPLAY_MODE_TRIP, NULL, NULL, NULL, NULL, &trip_stats);
+            draw_display (display1, DISPLAY_MODE_TRIP, &VOTOL_Response.resp, NULL, NULL, NULL, &trip_stats);
             break;
 
           case MODE_STATS:
-            draw_display (display1, DISPLAY_MODE_STATS, NULL, NULL, NULL, NULL, &trip_stats);
+            draw_display (display1, DISPLAY_MODE_STATS, &VOTOL_Response.resp, NULL, NULL, NULL, &trip_stats);
             break;
         }
 
@@ -875,7 +879,7 @@ void update_lights ()
 // call on any change in inputs (lights, brake, turn, mode etc)
 void input_ISR ()
 {
-  noInterrupts(); // disable while debouncing
+  //noInterrupts(); // disable while debouncing NOTE buggy
   debounce_flag = true;
 }
 
