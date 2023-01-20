@@ -10,3 +10,10 @@ Design includes:
 - SSD1306 OLED 64x48 0.66" SPI x 2
 - Original fuel gauge driven by H-bridge / PWM
 - See also, elead_lighting for tail light module
+
+See 'Hardware' folder for:
+- Bike wiring diagram
+- PCB schematics
+- Eagle files
+- PCB CAM outputs
+
