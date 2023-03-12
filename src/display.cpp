@@ -13,7 +13,8 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
   int16_t amps;
   uint16_t volts;
   int16_t temp_batt1, temp_batt2, temp_cont, temp_motor;
-  uint16_t dist_km_x10, avg_speed_x10, wh_km;
+  uint16_t dist_km_x10, avg_speed_x10;
+  int16_t wh_km;
   uint8_t hrs, mins, secs;
 
   display.clearDisplay();

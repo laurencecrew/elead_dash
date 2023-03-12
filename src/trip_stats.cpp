@@ -27,8 +27,8 @@ uint16_t TRIP_STATS_get_avg_speed ()
 }
 
 // return watt hours used per km travelled
-uint16_t TRIP_STATS_get_wh_per_km ()
+int16_t TRIP_STATS_get_wh_per_km ()
 {
-    return ((trip_stats.distance_mm == 0) ? 0 : trip_stats.watt_s_x100 * 100 / trip_stats.distance_mm / 36); // note, avoid div/0!
+    return ((trip_stats.distance_mm == 0) ? 0 : trip_stats.watt_s_x100 / trip_stats.distance_mm * 100 / 36); // note, avoid div/0!
 }
 
