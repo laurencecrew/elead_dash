@@ -5,6 +5,8 @@ Trip_stats_t trip_stats;
 void TRIP_STATS_init ()
 {
     trip_stats.trip_time.begin();
+
+    TRIP_STATS_reset();
 }
 
 void TRIP_STATS_reset ()

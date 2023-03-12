@@ -553,7 +553,9 @@ void loop()
           last_read_t = millis();
 
           // reset the trip stats
-          TRIP_STATS_reset();
+          // Moved to TRIP_STATS_init, called in init()
+          //  to save stats until power cycled
+          //TRIP_STATS_reset();
 
           #ifdef DEBUG
             DebugSerial.println ("To state: ACTIVE");
