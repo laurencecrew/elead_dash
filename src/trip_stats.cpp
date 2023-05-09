@@ -2,11 +2,12 @@
 
 Trip_stats_t trip_stats;
 
-void TRIP_STATS_init ()
+void TRIP_STATS_init (bool reset)
 {
     trip_stats.trip_time.begin();
 
-    TRIP_STATS_reset();
+    if (reset)
+        TRIP_STATS_reset();
 }
 
 void TRIP_STATS_reset ()
