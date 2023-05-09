@@ -8,6 +8,7 @@
 */
 
 #include <Arduino.h>
+#include "FlashStorage_STM32F1.h"
 #include "pins.h"
 #include "debug.h"
 #include "timers.h"
@@ -18,6 +19,7 @@
 #include "can_lights.h"
 #include "gauge.h"
 #include "trip_stats.h"
+#include "eedata.h"
 
 // blink states for turn indicators
 #define BLINK_MODE_NONE       0
@@ -31,6 +33,10 @@
 #define STATE_ACTIVE          3 // controller on
 #define STATE_CHARGING        4 // charger connected
 #define STATE_EXT_CONTROL     5 // external control software connected
+
+#define STATE_MODE_DETECT     6 // following states for detecting long button press
+#define STATE_MODE_WAIT       7
+#define STATE_MODE_RETURN     8
 
 // display modes
 #define NUM_MODES             3 // count of ..
@@ -48,9 +54,9 @@
 #define T_READ            250 / T_TICK // ticks; interval between reading BMS data and VOTOL data in ACTIVE state ALSO updating lights
 #define T_VOTOL_TIMEOUT   750 / (T_READ * T_TICK) // Read cycles. If Votol does not respond (e.g. off), go to IDLE state
 #define T_BLINK           500 / T_TICK // ticks; on-off blink time for turn indicators
-#define T_DEBOUNCE        1000 // us; wait before reading inputs after interrupt 
-#define T_CHARGE_TIMEOUT  10 // ticks in IDLE; successful reads in ACTIVE. If charge is detected, wait a few cycles before changing state to make sure
-
+#define T_DEBOUNCE        1000  // us; wait before reading inputs after interrupt 
+#define T_CHARGE_TIMEOUT  10    // ticks in IDLE; successful reads in ACTIVE. If charge is detected, wait a few cycles before changing state to make sure
+#define T_MODE            2000  // long press time i.e. to reset trip stats
 
 // Globals
 volatile bool tick_flag = true; // true on start and every timer cycle
@@ -61,6 +67,7 @@ volatile bool update_lights_flag = true; // true on start and whenever lights ar
 bool display_init = false; // false on start - make true if displays successfully initialise
 
 volatile uint8_t state = STATE_STARTING;
+uint8_t return_state = STATE_STARTING;
 uint8_t display_mode = MODE_AMPS;
 //uint8_t display_mode = MODE_TRIP;
 //uint8_t display_mode = MODE_STATS;
@@ -107,6 +114,9 @@ volatile uint8_t blink_count = 0;
 // function prototypes
 void init_dash ();
 void update_lights ();
+void mode_detect ();
+void save_dash_data (uint8_t); //, Trip_stats_t*);
+uint8_t load_dash_data (); //Trip_stats_t*);
 
 // interrupt handlers
 void input_ISR ();
@@ -164,6 +174,10 @@ void setup ()
   // initialise dash (start OLEDs, gauge)
   init_dash ();
 
+  // load the data from EEPROM and set the battery gauge straight away
+  uint8_t gauge_val = load_dash_data (); //&trip_stats);
+  GAUGE_Set (gauge_val);
+
   #ifdef DEBUG
     DebugSerial.println ("Init CAN ..");
   #endif
@@ -184,8 +198,8 @@ void setup ()
 
   // initialise trip stats
   // in particular, start the RTC
-  // note time is set to 0 on entering ACTIVE state
-  TRIP_STATS_init ();
+  // reset is false; use values loaded from EEPROM
+  TRIP_STATS_init (false);
 
   delay (500); // wait a bit for everthing to settle
 
@@ -219,12 +233,11 @@ void loop()
       // TODO may need to clear queued interrupts?
       //interrupts();
 
-      // Loop display modes on MODE_1_IN
+      // Loop display modes or reset trip stats on MODE_1_IN
       if (digitalRead (MODE_1_IN) == HIGH) // still high after interrupt & debounce
       {
-          // loop modes
-          if (++display_mode >= NUM_MODES)
-            display_mode = 0;
+        return_state = state;
+        state = STATE_MODE_DETECT;
       }
   
       // update lights in case any state has changed
@@ -237,7 +250,7 @@ void loop()
   // otherwise hard buffer flush disturbs communications
   if (state != STATE_EXT_CONTROL && VotolSerial.available())
   { 
-    VotolSerial.readBytes(VOTOL_Buffer, sizeof VOTOL_Response.data);
+    VotolSerial.readBytes (VOTOL_Buffer, sizeof VOTOL_Response.data);
 
     // if successful / valid packet
     if (VOTOL_check_response (VOTOL_Buffer))
@@ -418,8 +431,7 @@ void loop()
         // clear the flag
         update_flags.flags.bms_soc_1 = false;
 
-        // start the gauge & update it
-        GAUGE_Init();
+        // update the gauge
         GAUGE_Set (BMS_get_soc (&BMS_rpt_soc_1));
 
         state = STATE_IDLE;
@@ -509,6 +521,8 @@ void loop()
           charge_timeout_cnt = 0;
         }
 
+        save_dash_data (BMS_get_soc (&BMS_rpt_soc_1)); //, &trip_stats);
+
         #ifdef DEBUG
           DebugSerial.println ("Updating dash");
         #endif
@@ -521,11 +535,11 @@ void loop()
             break;
 
           case MODE_TRIP:
-            draw_display (display1, DISPLAY_MODE_TRIP, NULL, NULL, NULL, NULL, NULL);
+            draw_display (display1, DISPLAY_MODE_TRIP, NULL, NULL, NULL, NULL, &trip_stats);
             break;
 
           case MODE_STATS:
-            draw_display (display1, DISPLAY_MODE_STATS, NULL, NULL, NULL, NULL, NULL);
+            draw_display (display1, DISPLAY_MODE_STATS, NULL, NULL, NULL, NULL, &trip_stats);
             break;
         }
 
@@ -695,6 +709,8 @@ void loop()
           charge_timeout_cnt = 0;
         }
 
+        save_dash_data (BMS_get_soc (&BMS_rpt_soc_1)); //, &trip_stats);
+
         #ifdef DEBUG
           DebugSerial.println ("Updating dash");
         #endif
@@ -787,6 +803,43 @@ void loop()
       // exit state by power cycling only
     break;
 
+    // Detect long button press
+    // when the switch is pressed, detect press time & resulting function
+    case STATE_MODE_DETECT:
+    
+      // set the timeout for reset mode
+      TMR_SetInterval (mode_detect, T_MODE);
+
+      // wait for button release ..
+      state = STATE_MODE_WAIT;
+      
+    break;
+    
+    case STATE_MODE_WAIT:
+
+      if (digitalRead (MODE_1_IN) == LOW)  // wait for button release
+      {
+        TMR_ClearInterval (); // cancel timer
+        
+        // loop through display modes
+        if (++display_mode >= NUM_MODES)
+          display_mode = 0;
+                
+        // back to previous state
+        state = return_state;
+      }
+      
+    break;
+    
+    case STATE_MODE_RETURN:
+      
+      if (digitalRead (MODE_1_IN) == LOW)  // wait for button release
+      {  
+        // back to previous state
+        state = return_state; 
+      }
+      
+    break;  
   }
 
   // ready to read BMS data in every state
@@ -836,7 +889,11 @@ void init_dash ()
     // update display to show startup mode
     draw_display (display1, DISPLAY_MODE_START, NULL, NULL, NULL, NULL, NULL);
     draw_display (display2, DISPLAY_MODE_START, NULL, NULL, NULL, NULL, NULL);
- }
+  }
+
+  // initialise the gauge: start PWM
+  GAUGE_Init();
+
 }
 
 // update the lights
@@ -878,6 +935,47 @@ void update_lights ()
   LIGHTS_send_data (&LIGHTS_Data);
 }
 
+// save the dashboard data to eeprom
+void save_dash_data (uint8_t soc) //, Trip_stats_t *trip_stats)
+{
+  dashData_t dash_data;
+  
+  #ifdef DEBUG
+    DebugSerial.println ("Saving data");
+  #endif
+
+  // copy the data to dash_data
+  dash_data.soc = soc;
+  dash_data.distance_100m = trip_stats.distance_mm / 100000;
+  dash_data.watt_hrs = trip_stats.watt_s_x100 / 360000;
+  dash_data.hours = trip_stats.trip_time.getHours();
+  dash_data.minutes = trip_stats.trip_time.getMinutes();
+
+  EEDATA_save (&dash_data);
+}
+
+// load the dashboard data from eeprom
+uint8_t load_dash_data () //Trip_stats_t *trip_stats)
+{
+  dashData_t dash_data;
+
+  #ifdef DEBUG
+    DebugSerial.println ("Loading data");
+  #endif
+
+  EEDATA_load (&dash_data);
+
+  // copy the data to trip stats & set the time
+  trip_stats.distance_mm = dash_data.distance_100m * 100000;
+  trip_stats.watt_s_x100 = dash_data.watt_hrs * 360000;
+  trip_stats.trip_time.setHours(dash_data.hours);
+  trip_stats.trip_time.setMinutes(dash_data.minutes);
+  trip_stats.trip_time.setSeconds(0);
+
+  return (dash_data.soc);
+}
+
+
 // call on any change in inputs (lights, brake, turn, mode etc)
 void input_ISR ()
 {
@@ -913,4 +1011,19 @@ void tick ()
       blink_count = 0;
     }
   } 
+}
+
+// callback function for switch long press
+void mode_detect ()
+{
+  TMR_ClearInterval (); // cancel the timer
+  
+  // clear the trip stats
+  TRIP_STATS_reset();
+
+  // set flags to save data and update display
+  update_flags.all_flags = ALL_UPDATED;
+
+  // wait for release back in main loop
+  state = STATE_MODE_RETURN;  
 }
