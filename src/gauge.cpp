@@ -9,7 +9,6 @@ HardwareTimer *GaugeTimer = new HardwareTimer(Instance); // for gauge PWM output
 
 void GAUGE_Init()
 {
-
   // Gauge PWM output  
   GaugeTimer->setPWM(channel, GAUGE_PWM, PWM_FREQ, GAUGE_MID);
 }

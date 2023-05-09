@@ -15,7 +15,7 @@ typedef struct
 
 extern Trip_stats_t trip_stats;
 
-void TRIP_STATS_init ();
+void TRIP_STATS_init (bool);
 void TRIP_STATS_reset ();
 uint16_t TRIP_STATS_get_avg_speed ();
 int16_t TRIP_STATS_get_wh_per_km ();

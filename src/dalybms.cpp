@@ -51,7 +51,7 @@ uint32_t BMS_ParseId (BMS_CAN_Id_t id)
     return ((id.priority << 24) + (id.data_id << 16) + (id.dest_id << 8) + id.source_id);
 }
 
-uint16_t BMS_get_soc (BMS_SOC_Report_t *rpt)
+uint16_t BMS_get_soc (BMS_SOC_Report_t *rpt) // TODO: make this return uint8_t instead?
 {
     return ((uint16_t)((rpt->soc_h << 8) + rpt->soc_l) / 10);
 }
