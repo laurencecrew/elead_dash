@@ -4,7 +4,7 @@
   - Control indicator, brake and tail lights via CANBus
   - CAN driver code adapted from https://github.com/nopnop2002/Arduino-STM32-CAN
   - Use included version of library adafruit/Adafruit SSD1306@^2.5.1 as it has bug fixes / adaptations
-  laurence@laurencecrew.com 2022
+  laurence@laurencecrew.com 2023
 */
 
 #include <Arduino.h>
