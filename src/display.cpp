@@ -9,13 +9,14 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
 {
   int16_t  x1, y1;
   uint16_t w, h;
-  char str1[6], str2[9];
+  char str1[8], str2[9];
   int16_t amps;
   uint16_t volts;
   int16_t temp_batt1, temp_batt2, temp_cont, temp_motor;
   uint16_t dist_km_x10, avg_speed_x10;
   int16_t wh_km;
   uint8_t hrs, mins, secs;
+  uint32_t fault_codes;
 
   display.clearDisplay();
 
@@ -171,12 +172,6 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
       // screen label
       display.drawBitmap (44, 3, bm_label_degrees, 15, 9, SSD1306_WHITE);
 
-      // temperature icons
-      display.drawBitmap (3, 18, bm_icon_batt1, 6, 11, SSD1306_WHITE);
-      //display.drawBitmap (34, 18, bm_icon_batt2, 6, 11, SSD1306_WHITE);
-      display.drawBitmap (3, 34, bm_icon_cont, 6, 11, SSD1306_WHITE);
-      display.drawBitmap (34, 34, bm_icon_motor, 6, 11, SSD1306_WHITE);
-
        // set font (for all sections)
       display.setFont(&FreeSansBold9pt7b);
       display.setTextSize(1);              // 1:1 pixel scale
@@ -190,56 +185,98 @@ void draw_display (Adafruit_SSD1306 display, uint8_t mode, VOTOL_Response_t *res
           display.drawBitmap (3, 3, bm_warn_batt, 6, 10, SSD1306_WHITE);
       }
 
-      // BMS temperatures
-      if (temp_1 != NULL)
-      {
-        temp_batt1 = BMS_get_temp(temp_1);
-        //temp_batt2 = BMS_get_temp(temp_2);
-
-        sprintf (str1, "%d", temp_batt1);
-        //sprintf (str2, "%d", temp_batt2);
-
-      }
-      else
-      {
-          strcpy (str1, " --");
-          //strcpy (str2, " --");
-      }
- 
-      // batt 1 temp
-      display.setCursor(10, 28);
-      display.print(str1);
-
-      // batt 2 temp
-      //display.setCursor(41, 28);
-      //display.print(str2);
-
-      // VOTOL temperatures
+      // VOTOL temperatures and faults
       if (resp != NULL)
       {
         if (VOTOL_get_fault (resp))
+        {
+          // controller fault
           display.drawBitmap (11, 3, bm_warn_cont, 6, 10, SSD1306_WHITE);
 
-        temp_cont = VOTOL_get_contr_temp(resp);
-        temp_motor = VOTOL_get_motor_temp(resp);
+          // icons for conrtolller fault codes
+          display.drawBitmap (3, 18, bm_icon_cont, 6, 11, SSD1306_WHITE);
+          display.drawBitmap (3, 34, bm_icon_cont, 6, 11, SSD1306_WHITE);
 
-        sprintf (str1, "%d", temp_cont);
-        sprintf (str2, "%d", temp_motor);
+          fault_codes = VOTOL_get_fault_codes(resp);
+          sprintf (str1, "%04X", fault_codes >> 16);
+          sprintf (str2, "%04X", fault_codes & 0xFFFF);
 
+          display.setCursor(10, 28);
+          display.print(str1);
+
+          display.setCursor(10, 44);
+          display.print(str2);
+
+        }
+        else
+        {
+          // no warning, show temps
+
+          // battery temperature icons
+          display.drawBitmap (3, 18, bm_icon_batt1, 6, 11, SSD1306_WHITE);
+          //display.drawBitmap (34, 18, bm_icon_batt2, 6, 11, SSD1306_WHITE);
+
+          // BMS temperatures
+          if (temp_1 != NULL)
+          {
+            temp_batt1 = BMS_get_temp(temp_1);
+            //temp_batt2 = BMS_get_temp(temp_2);
+
+            sprintf (str1, "%d", temp_batt1);
+            //sprintf (str2, "%d", temp_batt2);
+
+          }
+          else
+          {
+              strcpy (str1, " --");
+              //strcpy (str2, " --");
+          }
+    
+          // batt 1 temp
+          display.setCursor(10, 28);
+          display.print(str1);
+
+          // batt 2 temp
+          //display.setCursor(41, 28);
+          //display.print(str2);
+          
+          // controller and motor temperature icons
+          display.drawBitmap (3, 34, bm_icon_cont, 6, 11, SSD1306_WHITE);
+          display.drawBitmap (34, 34, bm_icon_motor, 6, 11, SSD1306_WHITE);
+
+          temp_cont = VOTOL_get_contr_temp(resp);
+          temp_motor = VOTOL_get_motor_temp(resp);
+
+          sprintf (str1, "%d", temp_cont);
+          sprintf (str2, "%d", temp_motor);
+
+          // controller temp
+          display.setCursor(10, 44);
+          display.print(str1);
+
+          // motor temp
+          display.setCursor(41, 44);
+          display.print(str2);
+        }
       }
       else
       {
-          strcpy (str1, " --");
-          strcpy (str2, " --");
+        strcpy (str1, " --");
+        strcpy (str2, " --");
+
+        // controller and motor temperature icons
+        display.drawBitmap (3, 34, bm_icon_cont, 6, 11, SSD1306_WHITE);
+        display.drawBitmap (34, 34, bm_icon_motor, 6, 11, SSD1306_WHITE);
+
+          // controller temp
+        display.setCursor(10, 44);
+        display.print(str1);
+
+        // motor temp
+        display.setCursor(41, 44);
+        display.print(str2);
       }
  
-      // controller temp
-      display.setCursor(10, 44);
-      display.print(str1);
-
-      // motor temp
-      display.setCursor(41, 44);
-      display.print(str2);
       
     break;
 

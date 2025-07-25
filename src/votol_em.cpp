@@ -111,6 +111,11 @@ bool VOTOL_get_fault (VOTOL_Response_t *resp)
     return (resp->status_2 == Fault);
 }
 
+uint32_t VOTOL_get_fault_codes (VOTOL_Response_t *resp)
+{
+    return (((uint32_t)resp->fault_0 << 24) + ((uint32_t)resp->fault_1 << 16) + ((uint32_t)resp->fault_2 << 8) + (uint32_t)resp->fault_3);
+}
+
 bool VOTOL_get_regen_status (VOTOL_Response_t *resp)
 {
     return ((resp->status_1 & VOTOL_STATUS_1_MASK_REGEN) == VOTOL_STATUS_1_MASK_REGEN);

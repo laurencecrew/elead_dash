@@ -123,6 +123,7 @@ int16_t VOTOL_get_motor_temp (VOTOL_Response_t*);
 uint16_t VOTOL_get_rpm (VOTOL_Response_t*);
 bool VOTOL_get_sport_mode (VOTOL_Response_t*);
 bool VOTOL_get_fault (VOTOL_Response_t*);
+uint32_t VOTOL_get_fault_codes (VOTOL_Response_t*);
 bool VOTOL_get_regen_status (VOTOL_Response_t*);
 bool VOTOL_check_valid_temp (VOTOL_Response_t*);
 
