@@ -81,10 +81,10 @@ typedef struct
     int8_t current_h;       // Motor current, signed fixed pt dec, Hi byte
     uint8_t current_l;      // Motor current, signed fixed pt dec, Lo byte NOTE only hi byte should be signed!!
     uint8_t unknown;        // ?? 02 Example shows 00
-    uint8_t fault_0;        // Fault code? .. 00
-    uint8_t fault_1;        // Fault code? .. 00
-    uint8_t fault_2;        // Fault code? .. 00
-    uint8_t fault_3;        // Fault code? Brake off = 00, Brake on = 80 - is this a fault? Check software checkboxes
+    uint8_t fault_0;        // Fault code MSB
+    uint8_t fault_1;        // Fault code
+    uint8_t fault_2;        // Fault code
+    uint8_t fault_3;        // Fault code LSB
     uint8_t rpm_h;          // Motor RPM, int, Hi byte
     uint8_t rpm_l;          // Motor RPM, int, Low byte
     uint8_t temp_cont;      // Controller temp, dec+50, degrees C
@@ -96,6 +96,36 @@ typedef struct
     uint8_t checksum;		// Checksum (XOR of first 22 bytes)
     uint8_t footer;		    // 0D; Terminator
 } VOTOL_Response_t;
+
+/*
+Fault codes (fault_0:fault_3)
+    00000001    E_BRAKE_ON
+    00000002    OVER_CURRENT (Hardware)
+    00000004    UNDER_VOLTAGE
+    00000008    HALL_ERROR (Motor hall sensors)
+    00000010    OVER_VOLTAGE
+    00000020    MCU_ERROR
+    00000040    MOTOR_BLOCK (Motor stalled)
+    00000080    FOOTPLATE_ERROR (Throttle error)
+    00000100    SPEED_CONTROL (Phase shift angle?
+    00000200    WRITING_EEPROM
+    00000800    START_UP_FAILURE
+    00001000    OVERHEAT (Controller over temperature)
+    00002000    OVER_CURRENT (Software)
+    00004000    ACCELERATE_PEDAL_ERROR (Throttle error)
+    00008000    ICS1_ERR (Current sensor failure)
+    00010000    ICS2_ERR (Current sensor failure)
+    00020000    BRAKE_ERR
+    00040000    HALL_SEL_ERROR (Motor hall sensors)
+    00080000    MOSFET_DRIVER_FAULT
+    00100000    MOSFET_HIOGH_SHORT
+    00200000    PHASE_OPEN
+    00400000    PHASE_SHORT
+    00800000    MCU_CHIP_ERROR
+    01000000    PRE_CHARGE_ERROR
+    08000000    OVERHEAT1 (Motor overheating)
+    80000000    SOC_ZERO_ERROR (SOC reading 0)
+*/
 
 typedef union 
 {
