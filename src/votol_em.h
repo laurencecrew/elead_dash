@@ -107,7 +107,7 @@ Fault codes (fault_0:fault_3)
     00000020    MCU_ERROR
     00000040    MOTOR_BLOCK (Motor stalled)
     00000080    FOOTPLATE_ERROR (Throttle error)
-    00000100    SPEED_CONTROL (Phase shift angle?
+    00000100    SPEED_CONTROL (Phase shift angle)
     00000200    WRITING_EEPROM
     00000800    START_UP_FAILURE
     00001000    OVERHEAT (Controller over temperature)
